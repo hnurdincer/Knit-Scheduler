@@ -1,8 +1,9 @@
 from django.db import models
+from cloudinary.models import CloudinaryField
 
 class Product(models.Model):
     name = models.CharField(max_length=200)
-    image = models.ImageField(upload_to='products/', null=True, blank=True)
+    image = CloudinaryField('image', null=True, blank=True)
     image_url = models.URLField(max_length=500, null=True, blank=True)
     description = models.TextField(blank=True)
     
