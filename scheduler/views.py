@@ -3,7 +3,7 @@ from django.http import JsonResponse
 from .models import Product, Order
 from datetime import datetime
 import json
-from django.views.decorators.csrf import csrf_exempt
+
 
 def home(request):
     products = Product.objects.all()
@@ -27,7 +27,6 @@ def get_booked_days(request):
         })
     return JsonResponse(data, safe=False)
 
-@csrf_exempt
 def book_order(request):
     if request.method == 'POST':
         try:
@@ -35,6 +34,9 @@ def book_order(request):
             product = get_object_or_404(Product, id=data.get('product_id'))
             date_str = data.get('date')
             date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+            
+            if date_obj < datetime.now().date():
+                return JsonResponse({'status': 'error', 'message': 'Geçmiş bir tarihe sipariş alamazsınız!'}, status=400)
             
             if Order.objects.filter(date=date_obj).count() >= 2:
                 return JsonResponse({'status': 'error', 'message': 'Bu günün kontenjanı (2 sipariş) dolmuştur!'}, status=400)
@@ -44,7 +46,8 @@ def book_order(request):
                 date=date_obj,
                 contact_type=data.get('contact_type'),
                 contact_handle=data.get('contact_handle'),
-                client_identifier=data.get('client_identifier')
+                client_identifier=data.get('client_identifier'),
+                notes=data.get('notes')
             )
             return JsonResponse({'status': 'success'})
         except Exception as e:

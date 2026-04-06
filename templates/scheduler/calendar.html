@@ -3,12 +3,16 @@
 
 {% block content %}
 <div class="calendar-container">
+    <div style="margin-bottom: 1rem;">
+        <a href="{% url 'home' %}" class="btn" style="background-color: #666; font-size: 0.9rem;">← Ürünlere Geri
+            Dön</a>
+    </div>
     <div class="calendar-header">
         <button id="prevMonth" class="btn">Geri</button>
         <h2 id="monthDisplay">Nisan 2026</h2>
         <button id="nextMonth" class="btn">İleri</button>
     </div>
-    
+
     <div id="calendar" class="calendar-grid">
         <!-- JS will populate this -->
     </div>
@@ -21,7 +25,7 @@
         <p id="selectedProductDisplay" style="margin-bottom: 1rem; color: var(--secondary-color); font-weight: bold;">
             Seçili Ürün: {{ product.name }}
         </p>
-        
+
         <form id="bookingForm">
             <div class="form-group">
                 <label for="contact_type">Sizinle nereden iletişime geçebiliriz?</label>
@@ -38,6 +42,11 @@
             <div class="form-group">
                 <label for="client_identifier">İsminiz</label>
                 <input type="text" id="client_identifier" placeholder="Adınız Soyadınız" required>
+            </div>
+            <div class="form-group">
+                <label for="notes">Eklemek İstediğiniz Not (Varsa)</label>
+                <textarea id="notes" placeholder="Renk, desen veya özel isteklerinizi buraya yazabilirsiniz..." rows="3"
+                    style="width: 100%; padding: 0.5rem; border-radius: 8px; border: 1px solid #ddd;"></textarea>
             </div>
             <button type="submit" class="btn w-100" style="width: 100%;">Talebi Gönder</button>
         </form>
@@ -70,7 +79,7 @@
 
     function renderCalendar() {
         calendarEl.innerHTML = '';
-        
+
         // Days of week header
         const days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
         days.forEach(day => {
@@ -87,7 +96,7 @@
 
         const firstDayOfMonth = new Date(year, month, 1).getDay();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
-        
+
         // Adjust JS getDay() (Sun=0) to Mon=1
         const startingDay = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
 
@@ -98,13 +107,26 @@
             calendarEl.appendChild(el);
         }
 
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
         for (let day = 1; day <= daysInMonth; day++) {
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const iterationDate = new Date(year, month, day);
+            const isPast = iterationDate < today;
+
             const el = document.createElement('div');
             el.className = 'calendar-day';
-            
+
+            if (isPast) {
+                el.classList.add('past-day');
+                el.style.opacity = '0.5';
+                el.style.cursor = 'not-allowed';
+                el.style.backgroundColor = '#f9f9f9';
+            }
+
             const booking = bookedDays.find(b => b.date === dateStr);
-            
+
             if (booking && booking.count >= 2) {
                 el.classList.add('booked');
                 el.innerHTML = `<span class="day-number">${day}</span>
@@ -114,13 +136,13 @@
                 el.innerHTML = `<span class="day-number">${day}</span>
                                 <div class="day-products">${booking.product_names[0]}</div>
                                 <span class="day-status" style="color: var(--primary-color);">+1 Boş</span>`;
-                el.onclick = () => openBookingModal(dateStr);
+                if (!isPast) el.onclick = () => openBookingModal(dateStr);
             } else {
                 el.innerHTML = `<span class="day-number">${day}</span>
-                                <span class="day-status">Müsait</span>`;
-                el.onclick = () => openBookingModal(dateStr);
+                                <span class="day-status">${isPast ? '' : 'Müsait'}</span>`;
+                if (!isPast) el.onclick = () => openBookingModal(dateStr);
             }
-            
+
             calendarEl.appendChild(el);
         }
     }
@@ -141,12 +163,16 @@
             date: modal.dataset.selectedDate,
             contact_type: document.getElementById('contact_type').value,
             contact_handle: document.getElementById('contact_handle').value,
-            client_identifier: document.getElementById('client_identifier').value
+            client_identifier: document.getElementById('client_identifier').value,
+            notes: document.getElementById('notes').value
         };
 
         const response = await fetch('/api/book/', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
             body: JSON.stringify(data)
         });
 
@@ -167,7 +193,7 @@
     const contactHandleLabel = document.querySelector('label[for="contact_handle"]');
     const contactHandleInput = document.getElementById('contact_handle');
 
-    contactTypeSelect.addEventListener('change', function() {
+    contactTypeSelect.addEventListener('change', function () {
         if (this.value === 'MAIL') {
             contactHandleLabel.innerText = 'E-posta adresiniz';
             contactHandleInput.placeholder = 'ornek@mail.com';
