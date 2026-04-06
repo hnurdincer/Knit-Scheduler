@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Örgü Sipariş Takvimi{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <a href="{% url 'home' %}" style="text-decoration: none; color: inherit;">
+                <h1>🧶 Örgü Atölyesi</h1>
+            </a>
+            <p>El emeği, göz nuru siparişleriniz için randevu oluşturun.</p>
+        </header>
+
+        {% block content %}
+        {% endblock %}
+
+        <footer
+            style="margin-top: 5rem; text-align: center; padding: 2rem; border-top: 1px solid #EEE; opacity: 0.6; font-size: 0.8rem;">
+            <p>&copy; 2026 Örgü Atölyesi. Tüm hakları saklıdır.</p>
+    </div>
+
+    {% block scripts %}
+    {% endblock %}
+</body>
+
+</html>

@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="calendar-container">
+    <div class="calendar-header">
+        <button id="prevMonth" class="btn">Geri</button>
+        <h2 id="monthDisplay">Nisan 2026</h2>
+        <button id="nextMonth" class="btn">İleri</button>
+    </div>
+    
+    <div id="calendar" class="calendar-grid">
+        <!-- JS will populate this -->
+    </div>
+</div>
+
+<div id="bookingModal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" id="closeModal">&times;</span>
+        <h2 id="modalDateDisplay">Sipariş Oluştur</h2>
+        <p id="selectedProductDisplay" style="margin-bottom: 1rem; color: var(--secondary-color); font-weight: bold;">
+            Seçili Ürün: {{ product.name }}
+        </p>
+        
+        <form id="bookingForm">
+            <div class="form-group">
+                <label for="contact_type">Sizinle nereden iletişime geçebiliriz?</label>
+                <select id="contact_type" required>
+                    <option value="INSTA">Instagram</option>
+                    <option value="TIKTOK">TikTok</option>
+                    <option value="MAIL">Email</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="contact_handle">Kullanıcı adınız</label>
+                <input type="text" id="contact_handle" placeholder="@kullanici_adi" required>
+            </div>
+            <div class="form-group">
+                <label for="client_identifier">İsminiz</label>
+                <input type="text" id="client_identifier" placeholder="Adınız Soyadınız" required>
+            </div>
+            <button type="submit" class="btn w-100" style="width: 100%;">Talebi Gönder</button>
+        </form>
+    </div>
+</div>
+
+<input type="hidden" id="productId" value="{{ product.id }}">
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const calendarEl = document.getElementById('calendar');
+    const monthDisplay = document.getElementById('monthDisplay');
+    const prevBtn = document.getElementById('prevMonth');
+    const nextBtn = document.getElementById('nextMonth');
+    const modal = document.getElementById('bookingModal');
+    const closeModal = document.getElementById('closeModal');
+    const bookingForm = document.getElementById('bookingForm');
+    const modalDateDisplay = document.getElementById('modalDateDisplay');
+    const productId = document.getElementById('productId').value;
+
+    let currentDate = new Date();
+    let bookedDays = [];
+
+    async function fetchBookedDays() {
+        const response = await fetch('/api/booked-days/');
+        bookedDays = await response.json();
+        renderCalendar();
+    }
+
+    function renderCalendar() {
+        calendarEl.innerHTML = '';
+        
+        // Days of week header
+        const days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+        days.forEach(day => {
+            const el = document.createElement('div');
+            el.className = 'calendar-day-header';
+            el.innerText = day;
+            calendarEl.appendChild(el);
+        });
+
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+
+        monthDisplay.innerText = new Intl.DateTimeFormat('tr-TR', { month: 'long', year: 'numeric' }).format(currentDate);
+
+        const firstDayOfMonth = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        
+        // Adjust JS getDay() (Sun=0) to Mon=1
+        const startingDay = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
+
+        // Empty slots
+        for (let i = 0; i < startingDay; i++) {
+            const el = document.createElement('div');
+            el.className = 'calendar-day empty';
+            calendarEl.appendChild(el);
+        }
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const el = document.createElement('div');
+            el.className = 'calendar-day';
+            
+            const booking = bookedDays.find(b => b.date === dateStr);
+            
+            if (booking && booking.count >= 2) {
+                el.classList.add('booked');
+                el.innerHTML = `<span class="day-number">${day}</span>
+                                <div class="day-products">${booking.product_names.join('<br>')}</div>
+                                <span class="day-status">DOLU</span>`;
+            } else if (booking && booking.count === 1) {
+                el.innerHTML = `<span class="day-number">${day}</span>
+                                <div class="day-products">${booking.product_names[0]}</div>
+                                <span class="day-status" style="color: var(--primary-color);">+1 Boş</span>`;
+                el.onclick = () => openBookingModal(dateStr);
+            } else {
+                el.innerHTML = `<span class="day-number">${day}</span>
+                                <span class="day-status">Müsait</span>`;
+                el.onclick = () => openBookingModal(dateStr);
+            }
+            
+            calendarEl.appendChild(el);
+        }
+    }
+
+    function openBookingModal(date) {
+        modalDateDisplay.innerText = `Sipariş: ${date}`;
+        modal.dataset.selectedDate = date;
+        modal.style.display = 'flex';
+    }
+
+    closeModal.onclick = () => modal.style.display = 'none';
+    window.onclick = (event) => { if (event.target == modal) modal.style.display = 'none'; }
+
+    bookingForm.onsubmit = async (e) => {
+        e.preventDefault();
+        const data = {
+            product_id: productId,
+            date: modal.dataset.selectedDate,
+            contact_type: document.getElementById('contact_type').value,
+            contact_handle: document.getElementById('contact_handle').value,
+            client_identifier: document.getElementById('client_identifier').value
+        };
+
+        const response = await fetch('/api/book/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            alert('Sipariş talebi başarıyla alındı!');
+            modal.style.display = 'none';
+            fetchBookedDays();
+        } else {
+            const error = await response.json();
+            alert('Hata: ' + (error.message || 'Bir sorun oluştu.'));
+        }
+    };
+
+    prevBtn.onclick = () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); };
+    nextBtn.onclick = () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); };
+
+    const contactTypeSelect = document.getElementById('contact_type');
+    const contactHandleLabel = document.querySelector('label[for="contact_handle"]');
+    const contactHandleInput = document.getElementById('contact_handle');
+
+    contactTypeSelect.addEventListener('change', function() {
+        if (this.value === 'MAIL') {
+            contactHandleLabel.innerText = 'E-posta adresiniz';
+            contactHandleInput.placeholder = 'ornek@mail.com';
+        } else {
+            contactHandleLabel.innerText = 'Kullanıcı adınız';
+            contactHandleInput.placeholder = '@kullanici_adi';
+        }
+    });
+
+    fetchBookedDays();
+</script>
+{% endblock %}
