@@ -5,7 +5,7 @@ class Product(models.Model):
     description = models.TextField(verbose_name="Açıklama")
     image = models.ImageField(upload_to='products/', null=True, blank=True, verbose_name="Fotoğraf Yükle (Alternatif)")
     image_url = models.URLField(max_length=500, null=True, blank=True, verbose_name="Fotoğraf Linki (Önerilen)")
-    
+
     def __str__(self):
         return self.name
 
